@@ -8,13 +8,6 @@ raven.contrib.flask
 
 from __future__ import absolute_import
 
-try:
-    from flask_login import current_user
-except ImportError:
-    has_flask_login = False
-else:
-    has_flask_login = True
-
 import logging
 
 import blinker
@@ -140,11 +133,13 @@ class Sentry(object):
 
     def get_user_info(self, request):
         """
-        Requires Flask-Login (https://pypi.python.org/pypi/Flask-Login/)
+        Uses token auth to get user info
         to be installed and setup.
         """
-        if not has_flask_login:
+        if not g.token.user:
             return
+        else:
+            current_user = g.token.user
 
         if not hasattr(current_app, 'login_manager'):
             return
