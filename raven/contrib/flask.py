@@ -128,7 +128,11 @@ class Sentry(object):
     def handle_exception(self, *args, **kwargs):
         if not self.client:
             return
-
+        try:
+            self.client.user_context(self.get_user_info(request))
+        except Exception as e:
+            self.client.logger.exception(to_unicode(e))
+        # print(g.token.user)
         self.captureException(exc_info=kwargs.get('exc_info'))
 
     def get_user_info(self, request):
@@ -136,30 +140,32 @@ class Sentry(object):
         Uses token auth to get user info
         to be installed and setup.
         """
+        print(g.token.user)
         if not g.token.user:
             return
         else:
             current_user = g.token.user
+        print(current_user.id)
 
-        if not hasattr(current_app, 'login_manager'):
-            return
+        # if not hasattr(current_app, 'login_manager'):
+        #     return
 
-        try:
-            is_authenticated = current_user.is_authenticated
-        except AttributeError:
-            # HACK: catch the attribute error thrown by flask-login is not attached
-            # >   current_user = LocalProxy(lambda: _request_ctx_stack.top.user)
-            # E   AttributeError: 'RequestContext' object has no attribute 'user'
-            return {}
+        # try:
+        #     is_authenticated = current_user.is_authenticated
+        # except AttributeError:
+        #     # HACK: catch the attribute error thrown by flask-login is not attached
+        #     # >   current_user = LocalProxy(lambda: _request_ctx_stack.top.user)
+        #     # E   AttributeError: 'RequestContext' object has no attribute 'user'
+        #     return {}
 
-        if callable(is_authenticated):
-            is_authenticated = is_authenticated()
+        # if callable(is_authenticated):
+        #     is_authenticated = is_authenticated()
 
-        if not is_authenticated:
-            return {}
+        # if not is_authenticated:
+        #     return {}
 
         user_info = {
-            'id': current_user.get_id(),
+            'id': current_user.id,
         }
 
         if 'SENTRY_USER_ATTRS' in current_app.config:
@@ -221,10 +227,8 @@ class Sentry(object):
             self.client.http_context(self.get_http_info(request))
         except Exception as e:
             self.client.logger.exception(to_unicode(e))
-        try:
-            self.client.user_context(self.get_user_info(request))
-        except Exception as e:
-            self.client.logger.exception(to_unicode(e))
+
+
 
     def after_request(self, sender, response, *args, **kwargs):
         if self.last_event_id:
@@ -290,6 +294,8 @@ class Sentry(object):
         app.extensions['sentry'] = self
 
     def captureException(self, *args, **kwargs):
+
+            
         assert self.client, 'captureException called before application configured'
         result = self.client.captureException(*args, **kwargs)
         if result:
